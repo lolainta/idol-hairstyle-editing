@@ -4,10 +4,11 @@ from PIL import Image
 import numpy as np
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-
 from sam import segment
 from mask_gen import dilate_mask, dilate_mask_down, subtract_face_from_mask
-from inpaint import inpaint_mask
+from stable_diff_inpaint import prompt_inpaint
+import gc
+import torch
 
 
 def hash_image(image):
@@ -28,10 +29,11 @@ def sam2():
         factor = MAX_SIZE / max(w, h)
         w = int(factor * w)
         h = int(factor * h)
+        w = w // 64 * 64
+        h = h // 64 * 64
         image = image.resize((w, h))
         st.warning(f"Image resized to {w}x{h} to fit within {MAX_SIZE}px limit.")
-    # st.image(image, caption="Uploaded Image")
-
+    st.session_state.update({"image": image})
     face_col, hair_col = st.columns(2)
     with face_col:
         st.header("Face Segment")
@@ -214,8 +216,6 @@ def gen_mask(hair_mask: np.ndarray, face_mask: np.ndarray) -> list:
         )
     mask = dilate_mask_down(mask, kernel_size=ks2, dilation_iter=di2)
     ret.append(mask * 255)
-    print(f"Mask shape: {mask.shape}")
-    print(f"Face mask shape: {face_mask.shape}")
     mask = subtract_face_from_mask(mask, face_mask)
     ret.append(mask * 255)
     return ret
@@ -228,8 +228,75 @@ def inpaint():
         st.session_state.get("inpaint_mask", None) is not None
     ), "Inpaint mask is not ready."
     inpaint_mask = st.session_state.inpaint_mask
-    image = Image.open(upload_image)
-    w, h = image.size
+    image = st.session_state.image
+    inpaint_mask = Image.fromarray(inpaint_mask.astype(np.uint8))
+    prompt = st.text_input("Inpainting Prompt", "A cute girl with long hair")
+    scale = st.slider(
+        "Inpainting Scale",
+        min_value=0.1,
+        max_value=30.0,
+        value=7.5,
+        step=0.1,
+        help="Scale for the inpainting model.",
+    )
+    ddim_steps = st.slider(
+        "Inpainting DDIM Steps",
+        min_value=0,
+        max_value=50,
+        value=50,
+        step=1,
+        help="Number of DDIM steps for the inpainting model.",
+    )
+    result = prompt_inpaint(
+        image=image,
+        mask=inpaint_mask,
+        prompt=prompt,
+        scale=scale,
+        ddim_steps=ddim_steps,
+        w=st.session_state.image.width,
+        h=st.session_state.image.height,
+    )
+    st.session_state.update({"result": result})
+    if "result" in st.session_state:
+        remap_face()
+
+
+@st.fragment
+def remap_face():
+    st.header("Remap Face Segment")
+    assert (
+        st.session_state.get("face_segment", None) is not None
+    ), "Face segment is not ready."
+    assert (
+        st.session_state.get("result", None) is not None
+    ), "Inpainted image is not ready."
+    face_segment = st.session_state.face_segment
+    result = st.session_state.result
+    face_segment_3d = np.stack([face_segment] * 3, axis=-1)
+    remap_result = np.where(
+        face_segment_3d > 0,
+        st.session_state.image,
+        np.array(result),
+    )
+    remap_result = Image.fromarray(remap_result.astype(np.uint8))
+    st.session_state.update({"remapped_result": remap_result})
+
+    cols = st.columns(3)
+    cols[0].image(
+        st.session_state.image,
+        caption="Original Image",
+        use_container_width=True,
+    )
+    cols[1].image(
+        st.session_state.result,
+        caption="Inpainted Image",
+        use_container_width=True,
+    )
+    cols[2].image(
+        st.session_state.remapped_result,
+        caption="Remapped Face Segment",
+        use_container_width=True,
+    )
 
 
 def main():
@@ -264,6 +331,13 @@ def main():
     if st.session_state.get("inpaint_mask", None) is not None:
         st.success("Inpaint mask is ready for inpainting.")
         inpaint()
+        st.button(
+            "Rerun",
+            key="rerun_button",
+            help="Click to generate again with the same image and settings.",
+            icon="🔄",
+            on_click=lambda: st.session_state.update({"rerun": True}),
+        )
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ pyarrow==17.0.0
 pydeck==0.9.1
 Pygments==2.19.1
 python-dateutil==2.9.0.post0
-pytorch-lightning==2.4.0
+pytorch-lightning==1.9.5
 pytz==2025.2
 PyYAML==6.0.2
 referencing==0.35.1
