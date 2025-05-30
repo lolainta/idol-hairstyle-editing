@@ -1,0 +1,6 @@
+[submodule "sam2"]
+	path = sam2
+	url = git@github.com:facebookresearch/sam2.git
+[submodule "runway-stable-diffusion-inpainting"]
+	path = runway-stable-diffusion-inpainting
+	url = git@github.com:faraday/runway-stable-diffusion-inpainting.git
