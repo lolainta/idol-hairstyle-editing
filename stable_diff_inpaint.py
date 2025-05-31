@@ -68,9 +68,6 @@ def make_batch_sd(image, mask, prompt, device, num_samples=1):
     mask_np = (mask_np > 0.5).astype(np.float32)
     mask_tensor = torch.from_numpy(mask_np[None, None, ...]).to(device)
 
-    debug_mask = (mask_np * 255).astype(np.uint8)
-    Image.fromarray(debug_mask).save("debug_input_mask.png")
-
     masked_image = image_tensor * (1 - mask_tensor)
 
     batch = {
@@ -82,10 +79,9 @@ def make_batch_sd(image, mask, prompt, device, num_samples=1):
     return batch
 
 
-@st.cache_data
 def prompt_inpaint(
-    image,
-    mask,
+    image: Image.Image,
+    mask: np.ndarray,
     prompt,
     scale,
     ddim_steps,

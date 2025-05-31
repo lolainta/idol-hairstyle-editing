@@ -18,8 +18,8 @@ def init():
 
 def segment(image: Image.Image, points) -> list:
     print(f"Segmenting image with {len(points)} points...")
-    point_cords = torch.tensor(points, dtype=torch.float32).unsqueeze(0)  # [1, N, 2]
-    point_labels = torch.ones((len(points), 1), dtype=torch.int64)
+    point_cords = torch.tensor(points, dtype=torch.float32)
+    point_labels = torch.ones((len(points)), dtype=torch.int64)
     print(f"Shape of point_coords: {point_cords.shape}")
     print(f"Shape of point_labels: {point_labels.shape}")
     input_prompts = {
