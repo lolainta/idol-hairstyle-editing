@@ -10,11 +10,13 @@ cachetools==5.5.2
 certifi==2025.4.26
 charset-normalizer==3.4.2
 click==8.1.8
+-e git+https://github.com/openai/CLIP.git@dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1#egg=clip
 diffusers==0.33.1
 einops==0.8.1
 filelock==3.16.1
 frozenlist==1.5.0
 fsspec==2025.3.0
+ftfy==6.2.3
 gitdb==4.0.12
 GitPython==3.1.44
 hf-xet==1.1.2
@@ -28,7 +30,8 @@ iopath==0.1.10
 Jinja2==3.1.6
 jsonschema==4.23.0
 jsonschema-specifications==2023.12.1
-latent-diffusion @ file:///home/llt/repos/idles/runway-stable-diffusion-inpainting
+kornia==0.7.3
+kornia_rs==0.1.9
 lightning-utilities==0.11.9
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
@@ -63,7 +66,7 @@ pyarrow==17.0.0
 pydeck==0.9.1
 Pygments==2.19.1
 python-dateutil==2.9.0.post0
-pytorch-lightning==1.9.5
+pytorch-lightning==2.4.0
 pytz==2025.2
 PyYAML==6.0.2
 referencing==0.35.1
@@ -78,6 +81,7 @@ smmap==5.0.2
 streamlit==1.40.1
 streamlit-drawable-canvas==0.9.3
 sympy==1.13.3
+-e git+https://github.com/CompVis/taming-transformers.git@3ba01b241669f5ade541ce990f7650a3b8f65318#egg=taming_transformers
 tenacity==9.0.0
 tokenizers==0.20.3
 toml==0.10.2
@@ -93,5 +97,6 @@ typing_extensions==4.13.2
 tzdata==2025.2
 urllib3==2.2.3
 watchdog==4.0.2
+wcwidth==0.2.13
 yarl==1.15.2
 zipp==3.20.2
