@@ -3,27 +3,29 @@ import hashlib
 from PIL import Image
 import numpy as np
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
-from sam import segment
-from mask_gen import dilate_mask, dilate_mask_down, subtract_face_from_mask
+from mask_gen import (
+    dilate_mask,
+    dilate_mask_down,
+    subtract_face_from_mask,
+    fill_holes_and_close,
+)
 from stable_diff_inpaint import prompt_inpaint
-import gc
-import torch
+from components.sam import get_segmented_image
 
 
 def hash_image(image):
     sha1 = hashlib.sha1()
     sha1.update(image.read())
-    return sha1.hexdigest()
+    return sha1.hexdigest()[:8]
 
 
 def sam2():
     global upload_image
     global MAX_SIZE
-    image = Image.open(upload_image)
-    # check sha1sum and save
+    image = Image.open(upload_image).convert("RGB")
+    file_ext = upload_image.name.split(".")[-1]
     image_hash = hash_image(upload_image)
-    image.save(f"data/streamlit/{image_hash}.png")
+    image.save(f"data/streamlit/{image_hash}.{file_ext}")
     w, h = image.size
     if w > MAX_SIZE or h > MAX_SIZE:
         factor = MAX_SIZE / max(w, h)
@@ -37,140 +39,43 @@ def sam2():
     face_col, hair_col = st.columns(2)
     with face_col:
         st.header("Face Segment")
-        if not st.session_state.get("face_point", False):
-            get_face_points(image)
-        else:
-            # st.info(f"Face point: {st.session_state.face_point[-1]}")
-            face_segment = segment(image, st.session_state.face_point)
-            if not st.session_state.get("selected_face_mask", False):
-                cols = st.columns(3)
-                for i, mask in enumerate(face_segment, start=1):
-                    cols[i - 1].image(mask, caption=f"Mask {i}")
-                    cols[i - 1].button(
-                        f"Select {i} Mask",
-                        key=f"select_face_mask_{i}",
-                        on_click=lambda i=i: st.session_state.update(
-                            {
-                                "selected_face_mask": i,
-                                "face_segment": face_segment[i - 1],
-                            }
-                        ),
-                    )
-                st.warning("Please select a mask to proceed.")
-            else:
-                st.info(
-                    f"You selected mask {st.session_state.selected_face_mask} for the face segment."
-                )
-                st.image(
-                    st.session_state.face_segment,
-                    caption=f"Selected Mask {st.session_state.selected_face_mask}",
-                )
+        if "face_mask" not in st.session_state:
+            get_segmented_image(image, "face")
     with hair_col:
         st.header("Hair Segment")
-        if not st.session_state.get("hair_point", False):
-            get_hair_points(image)
-        else:
-            # st.info(f"Hair point: {st.session_state.hair_point[-1]}")
-            hair_segment = segment(image, st.session_state.hair_point)
-            if not st.session_state.get("selected_hair_mask", False):
-                cols = st.columns(3)
-                for i, mask in enumerate(hair_segment, start=1):
-                    cols[i - 1].image(mask, caption=f"Mask {i}")
-                    cols[i - 1].button(
-                        f"Select {i} Mask",
-                        key=f"select_hair_mask_{i}",
-                        on_click=lambda i=i: st.session_state.update(
-                            {
-                                "selected_hair_mask": i,
-                                "hair_segment": hair_segment[i - 1],
-                            }
-                        ),
-                    )
-                st.warning("Please select a mask to proceed.")
-            else:
-                st.info(
-                    f"You selected mask {st.session_state.selected_hair_mask} for the hair segment."
-                )
-                st.image(
-                    st.session_state.hair_segment,
-                    caption=f"Selected Mask {st.session_state.selected_hair_mask}",
-                )
+        if "hair_mask" not in st.session_state:
+            get_segmented_image(image, "hair")
 
 
-def get_face_points(image):
-    scale = 2
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0.0)",
-        stroke_width=3,
-        stroke_color="rgba(255, 0, 0, 1.0)",
-        background_image=image,
-        update_streamlit=True,
-        height=image.height // scale,
-        width=image.width // scale,
-        drawing_mode="point",
-        key="face_canvas",
-    )
-    if canvas_result.json_data is not None:
-        results = canvas_result.json_data["objects"]
-        points = [(r["left"] * scale, r["top"] * scale) for r in results]
-        if not points:
-            st.warning("Please draw at least one point on the image.")
-        else:
-            st.success(f"Points drawn: {points[-1]}")
-            st.session_state.face_point = points
-            st.rerun()
-
-
-def get_hair_points(image):
-    scale = 2
-    canvas_result = st_canvas(
-        fill_color="rgba(255, 255, 255, 0.0)",
-        stroke_width=3,
-        stroke_color="rgba(255, 0, 0, 1.0)",
-        background_image=image,
-        update_streamlit=True,
-        height=image.height // scale,
-        width=image.width // scale,
-        drawing_mode="point",
-        key="hair_canvas",
-    )
-    if canvas_result.json_data is not None:
-        results = canvas_result.json_data["objects"]
-        points = [(r["left"] * scale, r["top"] * scale) for r in results]
-        if not points:
-            st.warning("Please draw at least one point on the image.")
-        else:
-            st.success(f"Points drawn: {points[-1]}")
-            st.session_state.hair_point = points
-            st.rerun()
-
-
-@st.fragment
 def mask_generation():
     assert (
-        st.session_state.get("face_segment", None) is not None
-    ), "Face segment is not ready."
+        st.session_state.get("face_mask", None) is not None
+    ), "Face mask is not ready."
     assert (
-        st.session_state.get("hair_segment", None) is not None
-    ), "Hair segment is not ready."
+        st.session_state.get("hair_mask", None) is not None
+    ), "Hair mask is not ready."
     st.header("Mask Generation")
-    hair_mask = st.session_state.hair_segment
-    face_mask = st.session_state.face_segment
-    masks = gen_mask(hair_mask, face_mask)
-    cols = st.columns(len(masks))
-    for i, mask in enumerate(masks, start=1):
-        cols[i - 1].image(mask, caption=f"Mask {i}", use_container_width=True)
+    hair_mask = st.session_state.hair_mask
+    face_mask = st.session_state.face_mask
+    row1, row2 = gen_mask(hair_mask, face_mask)
+    hair_cols = st.columns(len(row1))
+    for i, mask in enumerate(row1, start=1):
+        hair_cols[i - 1].image(mask, caption=f"Hair Mask {i}", use_container_width=True)
+    face_cols = st.columns(len(row2))
+    for i, mask in enumerate(row2, start=1):
+        face_cols[i - 1].image(mask, caption=f"Face Mask {i}", use_container_width=True)
     st.session_state.update(
         {
-            "inpaint_mask": masks[-1],
+            "inpaint_mask": row2[-1],
         }
     )
 
 
 def gen_mask(hair_mask: np.ndarray, face_mask: np.ndarray) -> list:
-    ret = []
+    row1 = []
+    row2 = []
     mask = hair_mask
-    ret.append(mask)
+    row1.append(mask)
 
     kd1_cols = st.columns(2)
     with kd1_cols[0]:
@@ -193,7 +98,7 @@ def gen_mask(hair_mask: np.ndarray, face_mask: np.ndarray) -> list:
         )
 
     mask = dilate_mask(mask, kernel_size=ks1, dilation_iter=di1)
-    ret.append(mask * 255)
+    row1.append(mask * 255)
 
     kd2_cols = st.columns(2)
     with kd2_cols[0]:
@@ -215,10 +120,21 @@ def gen_mask(hair_mask: np.ndarray, face_mask: np.ndarray) -> list:
             help="Number of iterations for dilation down of the mask.",
         )
     mask = dilate_mask_down(mask, kernel_size=ks2, dilation_iter=di2)
-    ret.append(mask * 255)
-    mask = subtract_face_from_mask(mask, face_mask)
-    ret.append(mask * 255)
-    return ret
+    row1.append(mask * 255)
+    row2.append(face_mask)
+    fill_ks = st.slider(
+        "Face Mask Threshold",
+        min_value=1,
+        max_value=20,
+        value=7,
+        step=1,
+        help="Threshold for the face mask.",
+    )
+    face_mask_fill = fill_holes_and_close(face_mask, kernal_size=fill_ks)
+    row2.append(face_mask_fill * 255)
+    mask = subtract_face_from_mask(mask, face_mask_fill)
+    row2.append(mask * 255)
+    return row1, row2
 
 
 @st.fragment
@@ -230,23 +146,26 @@ def inpaint():
     inpaint_mask = st.session_state.inpaint_mask
     image = st.session_state.image
     inpaint_mask = Image.fromarray(inpaint_mask.astype(np.uint8))
-    prompt = st.text_input("Inpainting Prompt", "A cute girl with long hair")
-    scale = st.slider(
-        "Inpainting Scale",
-        min_value=0.1,
-        max_value=30.0,
-        value=7.5,
-        step=0.1,
-        help="Scale for the inpainting model.",
-    )
-    ddim_steps = st.slider(
-        "Inpainting DDIM Steps",
-        min_value=0,
-        max_value=50,
-        value=50,
-        step=1,
-        help="Number of DDIM steps for the inpainting model.",
-    )
+    prompt = st.text_area("Inpainting Prompt", "A cute girl with chin-length hair")
+    cols = st.columns(2)
+    with cols[0]:
+        scale = st.slider(
+            "Inpainting Scale",
+            min_value=0.1,
+            max_value=30.0,
+            value=7.5,
+            step=0.1,
+            help="Scale for the inpainting model.",
+        )
+    with cols[1]:
+        ddim_steps = st.slider(
+            "Inpainting DDIM Steps",
+            min_value=0,
+            max_value=80,
+            value=50,
+            step=1,
+            help="Number of DDIM steps for the inpainting model.",
+        )
     result = prompt_inpaint(
         image=image,
         mask=inpaint_mask,
@@ -306,26 +225,36 @@ def main():
         + " - Starting Streamlit app... "
         + "=" * 50
     )
+    print(st.session_state)
 
     st.title("Deep Learning Final Project")
     st.markdown(
         "This is a Streamlit app for the final project of the Deep Learning course. "
         "We will use Segment Anything Model (SAM) to draw points on an image and generate masks."
     )
-    st.button("reset", on_click=lambda: st.session_state.clear())
+    st.button(
+        "Reset",
+        on_click=lambda: (
+            st.session_state.clear(),
+            st.cache_data.clear(),
+            st.rerun(),
+        ),
+    )
 
     global MAX_SIZE
     MAX_SIZE = 640
     global upload_image
-    upload_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    upload_image = st.file_uploader(
+        "Upload an image", type=["png", "jpg", "jpeg", "webp"]
+    )
 
     if upload_image:
         sam2()
     if (
-        st.session_state.get("face_segment", None) is not None
-        and st.session_state.get("hair_segment", None) is not None
+        st.session_state.get("face_mask", None) is not None
+        and st.session_state.get("hair_mask", None) is not None
     ):
-        st.success("Both face and hair segments are ready for further processing.")
+        st.success("Both face and hair masks are ready for further processing.")
         mask_generation()
 
     if st.session_state.get("inpaint_mask", None) is not None:
@@ -336,7 +265,7 @@ def main():
             key="rerun_button",
             help="Click to generate again with the same image and settings.",
             icon="🔄",
-            on_click=lambda: st.session_state.update({"rerun": True}),
+            on_click=lambda: st.cache_data.clear(),
         )
 
 

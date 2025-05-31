@@ -1,6 +1,7 @@
 import streamlit as st
 import sys
 import torch
+from PIL import Image
 
 sys.path.append("sam2")
 from sam2.sam2_image_predictor import SAM2ImagePredictor
@@ -15,8 +16,7 @@ def init():
     return predictor
 
 
-@st.cache_data
-def segment(image, points):
+def segment(image: Image.Image, points) -> list:
     print(f"Segmenting image with {len(points)} points...")
     point_cords = torch.tensor(points, dtype=torch.float32).unsqueeze(0)  # [1, N, 2]
     point_labels = torch.ones((len(points), 1), dtype=torch.int64)

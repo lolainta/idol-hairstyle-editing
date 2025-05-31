@@ -28,3 +28,11 @@ def subtract_face_from_mask(dilated_mask, face_mask):
     final_mask = dilated_mask.copy()
     final_mask[face_mask > 0.5] = 0
     return final_mask
+
+
+def fill_holes_and_close(mask, kernal_size=5):
+    mask = (mask > 0.5).astype(np.uint8)  # Convert to binary mask
+    kernel = np.ones((kernal_size, kernal_size), np.uint8)
+    closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    closed_mask = (closed_mask > 0).astype(np.uint8)
+    return closed_mask
