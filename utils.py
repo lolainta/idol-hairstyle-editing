@@ -39,7 +39,7 @@ def log_info(
     os.makedirs("data/streamlit/logs/prompt", exist_ok=True)
     uid = str(uuid.uuid4())
     Image.fromarray(input).save(f"data/streamlit/logs/origin/{uid}.png")
-    mask_image = Image.fromarray(mask.astype(np.uint8) * 255)
+    mask_image = Image.fromarray(mask.astype(np.uint8))
     mask_image.save(f"data/streamlit/logs/mask/{uid}.png")
     Image.fromarray(inpaint).save(f"data/streamlit/logs/baseline/{uid}.png")
     Image.fromarray(output).save(f"data/streamlit/logs/result/{uid}.png")
