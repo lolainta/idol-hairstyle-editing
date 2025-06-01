@@ -50,13 +50,10 @@ def get_point_from_canvas(image: Image.Image, key: str):
         height=image.height // scale,
         width=image.width // scale,
         drawing_mode="point",
-        key=f"{key}_canvas",
+        key=f"{key}_canvas_{st.session_state.canvas_key}",
     )
     if canvas_result.json_data is not None:
         results = canvas_result.json_data["objects"]
         points = [(r["left"] * scale, r["top"] * scale) for r in results]
         if points:
             st.session_state.update({f"{key}_point": points})
-    # if st.session_state.get(f"{key}_point") is not None:
-    #     st.success(f"{key.capitalize()} point drawn successfully!")
-    #     chose_mask(image, key)

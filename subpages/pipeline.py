@@ -5,7 +5,10 @@ import streamlit as st
 from components.mask_gen import gen_mask
 from modules.stable_diff_inpaint import prompt_inpaint
 from components.canva import get_segmented_image
+from components.prompt_gen import prompt_generate
+from components.image_selector import image_selector
 from utils import hash_image, preprocess_image, log_info
+import random
 
 
 @st.fragment
@@ -86,11 +89,6 @@ def mask_generation():
 
 
 @st.fragment
-def prompt_generate():
-    st.session_state.update({"prompt": "A cute girl with chin-length hair"})
-
-
-@st.fragment
 def inpaint():
     st.header("Inpainting")
     assert (
@@ -137,7 +135,7 @@ def inpaint():
                     w=st.session_state.image.width,
                     h=st.session_state.image.height,
                 )
-                result = preprocess_image(result, max_size=640)
+                result = preprocess_image(result)
                 result_hash = hash_image(result)
                 path = f"data/streamlit/results/{result_hash}.png"
                 result.save(path)
@@ -212,9 +210,7 @@ def remap_face():
     )
 
 
-def pipeline():
-    global MAX_SIZE
-    global upload_image
+def main():
     print(
         "=" * 50
         + datetime.datetime.now().strftime(" %Y-%m-%d %H:%M:%S ")
@@ -231,33 +227,16 @@ def pipeline():
     )
     if st.button("Reset", help="Click to reset the mask and use the same image."):
         image = st.session_state.get("image", None)
-        upload_image = st.session_state.get("upload_image", None)
         st.session_state.clear()
         st.cache_data.clear()
-        st.session_state.update({"image": image, "upload_image": upload_image})
+        st.session_state.update({"image": image})
         st.rerun()
 
-    MAX_SIZE = 512
-    upload_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    image = image_selector("image")
+    st.session_state.update({"image": image})
+    st.session_state.canvas_key = random.randint(0, 10000)
 
-    if upload_image or st.session_state.get("image", None) is not None:
-        if upload_image:
-            image = Image.open(upload_image).convert("RGB")
-            image = preprocess_image(image, max_size=MAX_SIZE)
-            image_hash = hash_image(image)
-            file_ext = upload_image.name.split(".")[-1]
-            image.save(f"data/streamlit/{image_hash}.{file_ext}")
-        else:
-            image = st.session_state.get("image", None)
-            if image is None:
-                st.warning("Please upload an image to start.")
-                return
-        st.session_state.update({"image": image})
-        sam2()
-
-
-def main():
-    pipeline()
+    sam2()
 
 
 # if __name__ == "__main__":
