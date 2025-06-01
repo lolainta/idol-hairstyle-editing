@@ -2,15 +2,13 @@ import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 from sam import segment
-import random
 
 
 def get_segmented_image(image: Image.Image, key: str):
+    get_point_from_canvas(image, key)
     if st.session_state.get(f"{key}_point") is None:
         st.warning("Please draw a point on the image to segment the face.")
-    get_point_from_canvas(image, key)
     if st.session_state.get(f"{key}_point") is not None:
-        st.success(f"{key.capitalize()} point drawn successfully!")
         chose_mask(image, key)
 
 

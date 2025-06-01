@@ -15,8 +15,7 @@ def preprocess_image(image: Image.Image, max_size: int = 512) -> Image.Image:
         factor = max_size / max(w, h)
         w = int(factor * w)
         h = int(factor * h)
-    w = w // 64 * 64
-    h = h // 64 * 64
+    w = (w + 31) // 64 * 64
+    h = (h + 31) // 64 * 64
     image = image.resize((w, h))
-    st.warning(f"Image resized to {w}x{h} for processing.")
     return image

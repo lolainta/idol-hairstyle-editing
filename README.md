@@ -28,3 +28,11 @@ To run the streamlit app, execute the following command:
 ```bash
 streamlit run main.py
 ```
+
+## Docker Deployment
+
+To deploy the application using Docker, follow these steps:
+1. Build the Docker image:
+   ```bash
+   docker run -p 8501:8501 --runtime=nvidia --gpus all -v ./data:/app/data tonychi/idol
+   ```

@@ -26,10 +26,10 @@ def database():
     print(f"Images in database: {images}")
     cols = st.columns(3)
     for i, img_name in enumerate(images):
-
         if i % 3 == 0 and i != 0:
             cols = st.columns(3)
         with cols[i % 3]:
+            st.write("---")
             image_path = os.path.join("data/streamlit", img_name)
             ext = img_name.split(".")[-1]
             if ext.lower() not in ["jpg", "jpeg", "png"]:
@@ -37,7 +37,6 @@ def database():
                 continue
             image = Image.open(image_path)
             w, h = image.size
-            st.image(image, caption=f"{img_name} ({w}x{h})", use_container_width=True)
             btn_cols = st.columns(2)
             with btn_cols[0]:
                 with open(image_path, "rb") as img_file:
@@ -50,7 +49,7 @@ def database():
                         help="Click to download this image.",
                     )
             with btn_cols[1]:
-                if st.button("Use in Pipeline", key=f"pipeline_{img_name}"):
+                if st.button("Use in pipeline", key=f"pipeline_{img_name}"):
                     st.session_state.image = image
                     st.session_state.result = None
                     st.session_state.remapped_result = None
@@ -60,6 +59,7 @@ def database():
                     st.session_state.masked_image = None
                     st.session_state.masked_image_hash = None
                     st.switch_page("pages/pipeline.py")
+            st.image(image, caption=f"{img_name} ({w}x{h})", use_container_width=True)
 
 
 # This function initializes the Streamlit app and sets up the image database page.

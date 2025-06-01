@@ -1,0 +1,5 @@
+daata/
+**.py[cod]
+sam2/
+runway-stable-diffusion-inpainting/
+**.ckpt

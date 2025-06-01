@@ -39,43 +39,55 @@ def mask_generation():
     face_mask = st.session_state.face_mask
     row1, row2 = gen_mask(hair_mask, face_mask)
 
-    st.subheader("Hair Mask Generation")
-    hair_cols = st.columns(3)
-    hair_cols[0].image(
-        row1[0],
-        caption="Original Hair Mask",
-        use_container_width=True,
-    )
-    hair_cols[1].image(
-        row1[1],
-        caption="Dilated Hair Mask",
-        use_container_width=True,
-    )
-    hair_cols[2].image(
-        row1[2],
-        caption="Dilated Down Hair Mask",
-        use_container_width=True,
-    )
-    st.subheader("Face Mask Generation")
-    face_cols = st.columns(3)
-    face_cols[0].image(
-        row2[0],
-        caption="Original Face Mask",
-        use_container_width=True,
-    )
-    face_cols[1].image(
-        row2[1],
-        caption="Filled Face Mask",
-        use_container_width=True,
-    )
-    face_cols[2].image(
-        row2[2],
-        caption="Final Mask (Face Subtracted)",
-        use_container_width=True,
-    )
+    hcol, fcol = st.columns(2)
+    with hcol:
+        st.subheader("Hair Mask Generation")
+        hair_cols = st.columns(3)
+        hair_cols[0].image(
+            row1[0],
+            caption="Original Hair Mask",
+            use_container_width=True,
+        )
+        hair_cols[1].image(
+            row1[1],
+            caption="Dilated Hair Mask",
+            use_container_width=True,
+        )
+        hair_cols[2].image(
+            row1[2],
+            caption="Dilated Down Hair Mask",
+            use_container_width=True,
+        )
+    with fcol:
+        st.subheader("Face Mask Generation")
+        face_cols = st.columns(3)
+        face_cols[0].image(
+            row2[0],
+            caption="Original Face Mask",
+            use_container_width=True,
+        )
+        face_cols[1].image(
+            row2[1],
+            caption="Filled Face Mask",
+            use_container_width=True,
+        )
+        face_cols[2].image(
+            row2[2],
+            caption="Final Mask (Face Subtracted)",
+            use_container_width=True,
+        )
     st.session_state.update({"inpaint_mask": row2[2]})
     if "inpaint_mask" in st.session_state:
-        inpaint()
+        cols = st.columns(2)
+        with cols[0]:
+            prompt_generate()
+        with cols[1]:
+            inpaint()
+
+
+@st.fragment
+def prompt_generate():
+    st.session_state.update({"prompt": "A cute girl with chin-length hair"})
 
 
 @st.fragment
@@ -91,7 +103,8 @@ def inpaint():
     with st.form("Inpainting Settings"):
         prompt = st.text_area(
             "Inpainting Prompt",
-            "A cute girl with chin-length hair",
+            st.session_state.get("prompt"),
+            height=200,
         )
         cols = st.columns(2)
         with cols[0]:
@@ -208,7 +221,7 @@ def pipeline():
         "This is a Streamlit app for the final project of the Deep Learning course. "
         "We will use Segment Anything Model (SAM) to draw points on an image and generate masks."
     )
-    if st.button("Reset"):
+    if st.button("Reset", help="Click to reset the mask and use the same image."):
         image = st.session_state.get("image", None)
         upload_image = st.session_state.get("upload_image", None)
         st.session_state.clear()

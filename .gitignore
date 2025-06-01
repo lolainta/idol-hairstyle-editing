@@ -1,4 +1,4 @@
 data/
 .python-version
-*.py[cod]
+**.py[cod]
 sd-v1-5-inpainting.ckpt
