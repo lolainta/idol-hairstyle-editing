@@ -10,21 +10,8 @@ from utils import hash_image, preprocess_image
 
 @st.fragment
 def sam2():
-    global upload_image
-    global MAX_SIZE
-    if upload_image:
-        image = Image.open(upload_image).convert("RGB")
-        image = preprocess_image(image, max_size=MAX_SIZE)
-        image_hash = hash_image(image)
-        file_ext = upload_image.name.split(".")[-1]
-        image.save(f"data/streamlit/{image_hash}.{file_ext}")
-    else:
-        image = st.session_state.get("image", None)
-        if image is None:
-            st.warning("Please upload an image to start.")
-            return
-    st.session_state.update({"image": image})
-
+    assert st.session_state.get("image", None) is not None, "Image is not ready."
+    image = st.session_state.image
     face_col, hair_col = st.columns(2)
     with face_col:
         st.header("Face Segment")
@@ -137,9 +124,30 @@ def inpaint():
                     w=st.session_state.image.width,
                     h=st.session_state.image.height,
                 )
-                st.session_state.update({"result": result})
+                result = preprocess_image(result, max_size=640)
+                result_hash = hash_image(result)
+                path = f"data/streamlit/results/{result_hash}.png"
+                result.save(path)
+                st.session_state.update(
+                    {"result": result, "result_path": path, "result_hash": result_hash}
+                )
                 if "result" in st.session_state:
                     remap_face()
+    if (
+        st.session_state.get("result", None) is not None
+        and st.session_state.get("result_path", None) is not None
+        and st.session_state.get("result_hash", None) is not None
+    ):
+        st.success("Inpainting completed!")
+        with open(st.session_state.result_path, "rb") as img_file:
+            st.download_button(
+                label="Download Inpainted Image",
+                data=img_file,
+                file_name=f"{st.session_state.result_hash}.png",
+                mime="image/png",
+                key="download_inpainted_image",
+                help="Click to download the inpainted image.",
+            )
 
 
 @st.fragment
@@ -163,21 +171,24 @@ def remap_face():
     st.session_state.update({"remapped_result": remap_result})
 
     cols = st.columns(3)
-    cols[0].image(
-        st.session_state.image,
-        caption="Original Image",
-        use_container_width=True,
-    )
-    cols[1].image(
-        st.session_state.result,
-        caption="Inpainted Image",
-        use_container_width=True,
-    )
-    cols[2].image(
-        st.session_state.remapped_result,
-        caption="Remapped Face Segment",
-        use_container_width=True,
-    )
+    with cols[0]:
+        st.image(
+            st.session_state.image,
+            caption="Original Image",
+            use_container_width=True,
+        )
+    with cols[1]:
+        st.image(
+            st.session_state.result,
+            caption="Inpainted Image",
+            use_container_width=True,
+        )
+    with cols[2]:
+        st.image(
+            st.session_state.remapped_result,
+            caption="Remapped Face Segment",
+            use_container_width=True,
+        )
 
 
 def pipeline():
@@ -205,12 +216,22 @@ def pipeline():
         st.session_state.update({"image": image, "upload_image": upload_image})
         st.rerun()
 
-    MAX_SIZE = 640
-    upload_image = st.file_uploader(
-        "Upload an image", type=["png", "jpg", "jpeg", "webp"]
-    )
+    MAX_SIZE = 512
+    upload_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
     if upload_image or st.session_state.get("image", None) is not None:
+        if upload_image:
+            image = Image.open(upload_image).convert("RGB")
+            image = preprocess_image(image, max_size=MAX_SIZE)
+            image_hash = hash_image(image)
+            file_ext = upload_image.name.split(".")[-1]
+            image.save(f"data/streamlit/{image_hash}.{file_ext}")
+        else:
+            image = st.session_state.get("image", None)
+            if image is None:
+                st.warning("Please upload an image to start.")
+                return
+        st.session_state.update({"image": image})
         sam2()
 
 

@@ -1,7 +1,10 @@
 import streamlit as st
+import os
 
 
 def main():
+    os.makedirs("data/streamlit", exist_ok=True)
+    os.makedirs("data/streamlit/results", exist_ok=True)
     st.set_page_config(
         page_title="Deep Learning Final Project",
         page_icon="🖼️",

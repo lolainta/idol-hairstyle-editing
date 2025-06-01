@@ -9,7 +9,7 @@ def hash_image(image: Image.Image) -> str:
     return sha1.hexdigest()[:8]
 
 
-def preprocess_image(image: Image.Image, max_size: int = 640) -> Image.Image:
+def preprocess_image(image: Image.Image, max_size: int = 512) -> Image.Image:
     w, h = image.size
     if w > max_size or h > max_size:
         factor = max_size / max(w, h)
