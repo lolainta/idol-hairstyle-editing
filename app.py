@@ -13,8 +13,8 @@ def main():
     )
     pg = st.navigation(
         [
-            st.Page("pages/images.py", title="Image Database", icon="🖼️"),
-            st.Page("pages/pipeline.py", title="Pipeline", icon="🔧"),
+            st.Page("subpages/images.py", title="Image Database", icon="🖼️"),
+            st.Page("subpages/pipeline.py", title="Pipeline", icon="🔧"),
         ]
     )
     pg.run()

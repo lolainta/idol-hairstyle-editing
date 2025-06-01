@@ -58,7 +58,7 @@ def database():
                     st.session_state.points = None
                     st.session_state.masked_image = None
                     st.session_state.masked_image_hash = None
-                    st.switch_page("pages/pipeline.py")
+                    st.switch_page("subpages/pipeline.py")
             st.image(image, caption=f"{img_name} ({w}x{h})", use_container_width=True)
 
 
