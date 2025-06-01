@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
-from sam import segment
+from modules.sam import segment
 
 
 def get_segmented_image(image: Image.Image, key: str):

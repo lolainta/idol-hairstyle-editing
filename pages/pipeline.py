@@ -3,9 +3,9 @@ from PIL import Image
 import numpy as np
 import streamlit as st
 from components.mask_gen import gen_mask
-from stable_diff_inpaint import prompt_inpaint
+from modules.stable_diff_inpaint import prompt_inpaint
 from components.canva import get_segmented_image
-from utils import hash_image, preprocess_image
+from utils import hash_image, preprocess_image, log_info
 
 
 @st.fragment
@@ -76,7 +76,7 @@ def mask_generation():
             caption="Final Mask (Face Subtracted)",
             use_container_width=True,
         )
-    st.session_state.update({"inpaint_mask": row2[2]})
+    st.session_state.update({"face_mask": row2[1], "inpaint_mask": row2[2]})
     if "inpaint_mask" in st.session_state:
         cols = st.columns(2)
         with cols[0]:
@@ -202,6 +202,14 @@ def remap_face():
             caption="Remapped Face Segment",
             use_container_width=True,
         )
+
+    log_info(
+        input=np.array(st.session_state.image),
+        mask=st.session_state.face_mask,
+        inpaint=np.array(st.session_state.result),
+        output=np.array(st.session_state.remapped_result),
+        prompt=st.session_state.prompt,
+    )
 
 
 def pipeline():

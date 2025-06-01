@@ -62,9 +62,6 @@ def database():
             st.image(image, caption=f"{img_name} ({w}x{h})", use_container_width=True)
 
 
-# This function initializes the Streamlit app and sets up the image database page.
-
-
 def main():
     st.title("Image Database")
     st.write("This page is under construction. Please check back later.")
