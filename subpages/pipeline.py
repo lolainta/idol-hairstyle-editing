@@ -79,7 +79,10 @@ def mask_generation():
             caption="Final Mask (Face Subtracted)",
             use_container_width=True,
         )
-    st.session_state.update({"face_mask": row2[1], "inpaint_mask": row2[2]})
+    print(
+        f"Hair mask shape: {row1[0].shape}, Face mask shape: {row2[0].shape}, Final mask shape: {row2[2].shape}"
+    )
+    st.session_state.update({"filled_face_mask": row2[1], "inpaint_mask": row2[2]})
     if "inpaint_mask" in st.session_state:
         cols = st.columns(2)
         with cols[0]:
@@ -88,7 +91,6 @@ def mask_generation():
             inpaint()
 
 
-@st.fragment
 def inpaint():
     st.header("Inpainting")
     assert (
@@ -101,7 +103,7 @@ def inpaint():
     with st.form("Inpainting Settings"):
         prompt = st.text_area(
             "Inpainting Prompt",
-            st.session_state.get("prompt"),
+            st.session_state.get("fine_prompt"),
             height=200,
         )
         cols = st.columns(2)
@@ -140,7 +142,12 @@ def inpaint():
                 path = f"data/streamlit/results/{result_hash}.png"
                 result.save(path)
                 st.session_state.update(
-                    {"result": result, "result_path": path, "result_hash": result_hash}
+                    {
+                        "result": result,
+                        "result_path": path,
+                        "result_hash": result_hash,
+                        "prompt": prompt,
+                    }
                 )
                 if "result" in st.session_state:
                     remap_face()
@@ -165,16 +172,19 @@ def inpaint():
 def remap_face():
     st.header("Remap Face Segment")
     assert (
-        st.session_state.get("face_mask", None) is not None
+        st.session_state.get("filled_face_mask", None) is not None
     ), "Face mask is not ready."
     assert (
         st.session_state.get("result", None) is not None
     ), "Inpainted image is not ready."
-    face_mask = st.session_state.face_mask
+    filled_face_mask = st.session_state.filled_face_mask
     result = st.session_state.result
-    face_mask_3d = np.stack([face_mask] * 3, axis=-1)
+    print(
+        f"Face mask shape: {filled_face_mask.shape}, Result shape: {result.size}, Image shape: {st.session_state.image.size}"
+    )
+    filled_face_mask_3d = np.stack([filled_face_mask] * 3, axis=-1)
     remap_result = np.where(
-        face_mask_3d > 0,
+        filled_face_mask_3d > 0,
         st.session_state.image,
         np.array(result),
     )
@@ -201,12 +211,15 @@ def remap_face():
             use_container_width=True,
         )
 
-    log_info(
+    uid = log_info(
         input=np.array(st.session_state.image),
-        mask=st.session_state.face_mask,
+        mask=st.session_state.filled_face_mask,
         inpaint=np.array(st.session_state.result),
         output=np.array(st.session_state.remapped_result),
         prompt=st.session_state.prompt,
+    )
+    st.info(
+        f"Results logged with ID: {uid}. You can find the logs in the `data/streamlit/logs` directory."
     )
 
 
@@ -235,6 +248,7 @@ def main():
     image = image_selector("image")
     st.session_state.update({"image": image})
     st.session_state.canvas_key = random.randint(0, 10000)
+    st.session_state.seed = random.randint(0, 1000000)
 
     sam2()
 

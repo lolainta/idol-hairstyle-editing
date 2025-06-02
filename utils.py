@@ -31,7 +31,7 @@ def log_info(
     inpaint: np.ndarray,
     output: np.ndarray,
     prompt: str,
-):
+) -> str:
     os.makedirs("data/streamlit/logs/baseline", exist_ok=True)
     os.makedirs("data/streamlit/logs/mask", exist_ok=True)
     os.makedirs("data/streamlit/logs/origin", exist_ok=True)
@@ -45,3 +45,5 @@ def log_info(
     Image.fromarray(output).save(f"data/streamlit/logs/result/{uid}.png")
     with open(f"data/streamlit/logs/prompt/{uid}.txt", "w") as f:
         f.write(prompt)
+
+    return uid
