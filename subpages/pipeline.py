@@ -13,6 +13,7 @@ import random
 
 @st.fragment
 def sam2():
+    st.header("Segment Anything Model (SAM) 2.0")
     assert st.session_state.get("image", None) is not None, "Image is not ready."
     image = st.session_state.image
     face_col, hair_col = st.columns(2)
@@ -79,16 +80,22 @@ def mask_generation():
             caption="Final Mask (Face Subtracted)",
             use_container_width=True,
         )
-    print(
-        f"Hair mask shape: {row1[0].shape}, Face mask shape: {row2[0].shape}, Final mask shape: {row2[2].shape}"
+    st.session_state.update(
+        {
+            "filled_face_mask": row2[1],
+            "inpaint_mask": row2[2],
+            "dilated_hair_mask": row1[2],
+        }
     )
-    st.session_state.update({"filled_face_mask": row2[1], "inpaint_mask": row2[2]})
     if "inpaint_mask" in st.session_state:
-        cols = st.columns(2)
-        with cols[0]:
-            prompt_generate()
-        with cols[1]:
-            inpaint()
+        # cols = st.columns(2)
+        # with cols[0]:
+        #     prompt_generate()
+        # with cols[1]:
+        st.session_state.update(
+            {"fine_prompt": "A cute girl with long black straight hair."}
+        )
+        inpaint()
 
 
 def inpaint():
@@ -213,7 +220,7 @@ def remap_face():
 
     uid = log_info(
         input=np.array(st.session_state.image),
-        mask=st.session_state.filled_face_mask,
+        mask=st.session_state.dilated_hair_mask,
         inpaint=np.array(st.session_state.result),
         output=np.array(st.session_state.remapped_result),
         prompt=st.session_state.prompt,
@@ -238,13 +245,27 @@ def main():
         "This is a Streamlit app for the final project of the Deep Learning course. "
         "We will use Segment Anything Model (SAM) to draw points on an image and generate masks."
     )
-    if st.button("Reset", help="Click to reset the mask and use the same image."):
-        image = st.session_state.get("image", None)
-        st.session_state.clear()
-        st.cache_data.clear()
-        st.session_state.update({"image": image})
-        st.rerun()
-
+    but_cols = st.columns(5)
+    with but_cols[0]:
+        if st.button(
+            "Reset",
+            help="Click to reset everything, you will need to choose an image again.",
+        ):
+            st.session_state.clear()
+            st.cache_data.clear()
+            st.rerun()
+    with but_cols[2]:
+        if "image" in st.session_state:
+            if st.button(
+                "Redraw",
+                help="Click to reset the mask and use the same image.",
+            ):
+                image = st.session_state.get("image", None)
+                st.session_state.clear()
+                st.cache_data.clear()
+                st.session_state.update({"image": image})
+                st.rerun()
+    st.write("---")
     image = image_selector("image")
     st.session_state.update({"image": image})
     st.session_state.canvas_key = random.randint(0, 10000)

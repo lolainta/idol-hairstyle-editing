@@ -7,7 +7,7 @@ from utils import preprocess_image, hash_image
 def upload():
     images = st.file_uploader(
         "Upload Images",
-        type=["jpg", "jpeg", "png"],
+        type=["jpg", "jpeg", "png", "webp"],
         accept_multiple_files=True,
     )
     if images:
@@ -22,19 +22,26 @@ def upload():
 
 def database():
     images = os.listdir("data/streamlit")
-    images = [img for img in images if img.lower().endswith((".jpg", ".jpeg", ".png"))]
-    print(f"Images in database: {images}")
-    cols = st.columns(3)
+    images = [
+        img
+        for img in images
+        if img.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+    ]
+    images = sorted(
+        images,
+        key=lambda x: Image.open(os.path.join("data/streamlit", x)).size[0] * 512
+        + Image.open(os.path.join("data/streamlit", x)).size[1],
+        reverse=True,
+    )
+    # print(f"Images in database: {images}")
+    cols = st.columns(4)
     for i, img_name in enumerate(images):
-        if i % 3 == 0 and i != 0:
-            cols = st.columns(3)
-        with cols[i % 3]:
+        if i % 4 == 0 and i != 0:
+            cols = st.columns(4)
+        with cols[i % 4]:
             st.write("---")
             image_path = os.path.join("data/streamlit", img_name)
             ext = img_name.split(".")[-1]
-            if ext.lower() not in ["jpg", "jpeg", "png"]:
-                st.warning(f"Unsupported file type: {ext}")
-                continue
             image = Image.open(image_path)
             w, h = image.size
             btn_cols = st.columns(2)
@@ -49,7 +56,7 @@ def database():
                         help="Click to download this image.",
                     )
             with btn_cols[1]:
-                if st.button("Use in pipeline", key=f"pipeline_{img_name}"):
+                if st.button("Use image", key=f"pipeline_{img_name}"):
                     st.session_state.image = image
                     st.session_state.result = None
                     st.session_state.remapped_result = None

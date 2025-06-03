@@ -7,10 +7,14 @@ import random
 def image_selector(key: str):
     if key not in st.session_state:
         st.session_state[key] = None
+    if st.session_state[key] is not None:
+        print(f"Image already selected: {st.session_state[key]}")
+        return st.session_state[key]
 
     images = os.listdir("data/streamlit")
     images = [img for img in images if img.lower().endswith((".jpg", ".jpeg", ".png"))]
-    print(f"Images in database: {images}")
+    random.shuffle(images)
+    # print(f"Images in database: {images}")
 
     if not images:
         st.warning("No images available in the database.")

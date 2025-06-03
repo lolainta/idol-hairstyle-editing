@@ -15,6 +15,7 @@ def main():
         [
             st.Page("subpages/images.py", title="Image Database", icon="🖼️"),
             st.Page("subpages/pipeline.py", title="Pipeline", icon="🔧"),
+            st.Page("subpages/results.py", title="Results", icon="📊"),
         ]
     )
     pg.run()
