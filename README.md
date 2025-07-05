@@ -1,6 +1,9 @@
 # Deep Learning Final Project
 
-
+## Group Members
+- Cheng-Liang Chi
+- Zi-Hui Li
+- Ting-Wan Chang
 
 ## Installation
 
