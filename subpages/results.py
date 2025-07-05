@@ -3,18 +3,15 @@ import os
 import glob
 from PIL import Image
 import zipfile
-import random
 
 
-@st.fragment
-def download_button(uid):
-    btn_cols = st.columns(2)
-
-    if btn_cols[0].button(
+def download_button(uid, key: str):
+    if st.button(
         "zip",
-        key=f"download_{uid}_{random.randint(0, 10000)}",
+        key=f"download_{uid}_{key}",
         help="Download all results for this ID as a ZIP file. (Includes original, result, mask, baseline, and prompt files. The ZIP file will be created on the fly.)",
     ):
+        print(f"Downloading results for ID: {uid}")
         origin_path = glob.glob(f"data/streamlit/logs/origin/{uid}.*")[0]
         result_path = glob.glob(f"data/streamlit/logs/result/{uid}.*")[0]
         mask_path = glob.glob(f"data/streamlit/logs/mask/{uid}.*")[0]
@@ -37,19 +34,18 @@ def download_button(uid):
                 prompt_path, "prompt." + os.path.basename(prompt_path).split(".")[-1]
             )
         with open(zip_filename, "rb") as zip_file:
-            btn_cols[1].download_button(
+            if st.download_button(
                 label="Download ZIP",
                 data=zip_file,
                 file_name=os.path.basename(zip_filename),
                 mime="application/zip",
-                key=f"download_zip_{os.path.basename(zip_filename)}_{random.randint(0, 10000)}",
+                key=f"download_zip_{os.path.basename(zip_filename)}_{key}",
                 help="Click to download the results as a ZIP file.",
-            )
-        os.remove(zip_filename)
+            ):
+                os.remove(zip_filename)
 
 
-@st.fragment
-def card(uid, full=False, expanded=False):
+def card(uid, key, full=False, expanded=False):
     with st.expander(f"Result ID: {uid}", expanded=expanded):
         with open(f"data/streamlit/logs/prompt/{uid}.txt", "r") as f:
             prompt = f.read()
@@ -58,7 +54,6 @@ def card(uid, full=False, expanded=False):
         origin_image = Image.open(origin_path)
         result_image = Image.open(result_path)
 
-        st.write(f"**Prompt:** {prompt}")
         if not full:
             cols = st.columns(2)
             with cols[0]:
@@ -96,56 +91,50 @@ def card(uid, full=False, expanded=False):
                 st.image(
                     result_image, caption="Processed Image", use_container_width=True
                 )
-        download_button(uid)
+        st.write(f"**Prompt:** {prompt}")
+        download_button(uid, key)
 
 
-@st.fragment
 def gallery_page(ids):
-    cols = st.columns(6)
-    with cols[0]:
-        col_num = st.number_input(
-            "Number of columns",
-            min_value=1,
-            max_value=6,
-            value=3,
-            step=1,
-            help="Select the number of columns to display the result cards.",
-        )
-    with cols[5]:
-        expand_all = st.checkbox(
-            "Expand all cards",
-            value=False,
-            help="Check to expand all result cards.",
-        )
+    col_num = st.sidebar.number_input(
+        "Number of columns",
+        min_value=1,
+        max_value=6,
+        value=3,
+        step=1,
+        help="Select the number of columns to display the result cards.",
+    )
+    expand_all = st.sidebar.checkbox(
+        "Expand all cards",
+        value=False,
+        help="Check to expand all result cards.",
+    )
     st.write(f"Showing {len(ids)} results:")
     card_cols = st.columns(col_num)
     for i, uid in enumerate(ids):
         if i % col_num == 0 and i != 0:
             card_cols = st.columns(col_num)
         with card_cols[i % col_num]:
-            card(uid, full=False, expanded=expand_all)
+            card(uid, key=f"{uid}_pagecard", full=False, expanded=expand_all)
 
 
 def gallery():
     ids = os.listdir("data/streamlit/logs/result")
     ids = [uid.split(".")[0] for uid in ids]
-    ids = sorted(ids, reverse=True)
+    ids = sorted(ids)
     st.write(f"Total results: {len(ids)}")
-    cols = st.columns(6)
-    with cols[0]:
-        page_size = st.selectbox(
-            "Results per page", options=[20, 50, 100, 200, 500, 1000], index=0
-        )
+    page_size = st.sidebar.selectbox(
+        "Results per page", options=[20, 50, 100, 200, 500, 1000], index=0
+    )
     page_num = len(ids) // page_size + (1 if len(ids) % page_size > 0 else 0)
-    with cols[1]:
-        page = st.number_input(
-            f"Page number (1 to {page_num}):",
-            min_value=1,
-            max_value=page_num,
-            value=1,
-            step=1,
-            help="Select the page number to view results.",
-        )
+    page = st.sidebar.number_input(
+        f"Page number (1 to {page_num}):",
+        min_value=1,
+        max_value=page_num,
+        value=1,
+        step=1,
+        help="Select the page number to view results.",
+    )
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
     ids_to_show = ids[start_index:end_index]
@@ -154,13 +143,25 @@ def gallery():
 
 
 def query():
-    st.write("Query results by ID:")
+    st.write("To show more details about a specific result, enter the result ID below.")
     uid = st.text_input("Enter result ID:", "")
     if uid:
         if os.path.exists(f"data/streamlit/logs/result/{uid}.png"):
-            card(uid, full=True)
+            card(uid, key=f"{uid}_query", full=True, expanded=True)
         else:
-            st.error(f"No results found for ID: {uid}")
+            if res:=glob.glob(f"data/streamlit/logs/result/*{uid}*"):
+                if len(res) == 1:
+                    selected_uid = os.path.basename(res[0]).split(".")[0]
+                    st.write(f"Found result for ID: {selected_uid}")
+                    card(selected_uid, key=f"{selected_uid}_query", full=True, expanded=True)
+                else:
+                    st.warning(f"{len(res)} results found for: \"{uid}\". Please select one to view.")
+                    selected_uid = st.selectbox(
+                        "Select the result to view:", options=[os.path.basename(r).split(".")[0] for r in res]
+                    )
+                    card(selected_uid, key=f"{selected_uid}_query", full=True, expanded=True)
+            else:
+                st.error(f"No results found for ID: {uid}")
     else:
         st.warning("Please enter a result ID to query.")
 
